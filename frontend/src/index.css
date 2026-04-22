@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-lg border border-white/10 shadow-glass rounded-2xl;
+  }
+  
+  .glass-input {
+    @apply bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary-500 to-accent-500 hover:from-primary-600 hover:to-accent-600 text-white font-medium py-3 px-6 rounded-xl transition-all shadow-lg hover:shadow-neon transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none;
+  }
+}
+
+body {
+  background: radial-gradient(circle at top left, #111827, #030712);
+  min-height: 100vh;
+  color: #f3f4f6;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
