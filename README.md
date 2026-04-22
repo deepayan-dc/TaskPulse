@@ -98,10 +98,3 @@ You can supply them in `backend/.env` for local development and via compose envi
 - Task list / Kanban
 - Task detail with comments + timer
 
-## Future Improvements
-
-- Add automated test suite (unit + integration + e2e)
-- Add CI pipeline with lint/build/test gates
-- Add production-grade monitoring and alerts
-- Move mock data fully to persistent backend models
-- Add stricter RBAC policies and audit logs
