@@ -91,7 +91,12 @@ You can supply them in `backend/.env` for local development and via compose envi
 
 ## Screenshots
 
-> Add final UI screenshots before submission:
+<img width="1845" height="884" alt="Screenshot 2026-04-23 050329" src="https://github.com/user-attachments/assets/fe0e7318-e1cb-4fde-918a-432fa23e799d" />
+<img width="1866" height="888" alt="Screenshot 2026-04-23 053806" src="https://github.com/user-attachments/assets/4bd52c40-c5c0-41b2-8434-efa652c670ff" />
+<img width="1862" height="878" alt="Screenshot 2026-04-23 053848" src="https://github.com/user-attachments/assets/1acffc2c-91b0-46d3-925c-52b1e79c0123" />
+<img width="1843" height="884" alt="Screenshot 2026-04-23 053937" src="https://github.com/user-attachments/assets/bc47fa03-8b45-4def-9db8-b4c841ba26f7" />
+<img width="1836" height="874" alt="image" src="https://github.com/user-attachments/assets/22ee0aa2-b589-42c3-8986-7c73ce1ca60a" />
+
 
 - Login page
 - Dashboard
