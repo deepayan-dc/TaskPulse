@@ -1,13 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { loginUser } from '../services/auth.service';
+import { requireString } from '../utils/validators';
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
-    }
+    const email = requireString(req.body?.email, 'email');
+    const password = requireString(req.body?.password, 'password');
 
     const data = await loginUser(email, password);
 
@@ -15,11 +13,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       message: 'Login successful',
       data,
     });
-  } catch (error: any) {
-    if (error.message === 'Invalid credentials') {
-      res.status(401).json({ message: error.message });
-    } else {
-      next(error);
-    }
+  } catch (error) {
+    next(error);
   }
 };
