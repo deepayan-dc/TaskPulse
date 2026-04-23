@@ -7,10 +7,10 @@ export const getTasks = async () => {
     include: {
       assignedTo: { select: { id: true, name: true, email: true } },
       createdBy: { select: { id: true, name: true, email: true } },
+      timeLogs: true,
       _count: {
         select: {
           comments: true,
-          timeLogs: true,
           notifications: true,
         },
       },
@@ -55,6 +55,7 @@ export const createTask = async (input: {
     include: {
       assignedTo: { select: { id: true, name: true, email: true } },
       createdBy: { select: { id: true, name: true, email: true } },
+      timeLogs: true,
     },
   });
 
@@ -81,6 +82,7 @@ export const updateTaskStatus = async (taskId: number, status: string) => {
     include: {
       assignedTo: { select: { id: true, name: true, email: true } },
       createdBy: { select: { id: true, name: true, email: true } },
+      timeLogs: true,
     },
   });
 

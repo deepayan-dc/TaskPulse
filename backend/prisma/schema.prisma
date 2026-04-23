@@ -51,15 +51,16 @@ model Comment {
 }
 
 model TimeLog {
-  id        Int      @id @default(autoincrement())
-  taskId    Int
-  userId    String
-  minutes   Int
-  note      String?
-  loggedAt  DateTime @default(now())
-  createdAt DateTime @default(now())
-  task      Task     @relation(fields: [taskId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  id          Int      @id @default(autoincrement())
+  taskId      Int
+  userId      String
+  startTime   DateTime @default(now())
+  endTime     DateTime?
+  duration    Int      @default(0)
+  note        String?
+  createdAt   DateTime @default(now())
+  task        Task     @relation(fields: [taskId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
 }
 
 model Notification {
