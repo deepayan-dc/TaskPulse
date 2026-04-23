@@ -1,23 +1,19 @@
 import { AuthResponse, LoginCredentials } from '../types/auth';
+import { apiFetch } from './api';
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    // TEMP MOCK LOGIN (no backend needed)
-    const MOCK_USERS = [
-      { id: '1', name: 'Rajesh Gupta', email: 'manager1@test.com', role: 'MANAGER' },
-      { id: '2', name: 'Anita Sharma', email: 'manager2@test.com', role: 'MANAGER' },
-      { id: '3', name: 'Vikram Patel', email: 'employee1@test.com', role: 'EMPLOYEE' },
-      { id: '4', name: 'Priya Singh', email: 'employee2@test.com', role: 'EMPLOYEE' },
-      { id: '5', name: 'Arjun Mehta', email: 'employee3@test.com', role: 'EMPLOYEE' },
-    ];
-
-    const user = MOCK_USERS.find(u => u.email === credentials.email);
-    if (!user) throw new Error('Invalid email or password');
-
+    const response = await apiFetch('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+    
+    const data = await response.json();
+    
     return {
-      accessToken: "dummy-token",
+      accessToken: btoa(`${credentials.email}:${credentials.password}`),
       refreshToken: "",
-      user: user as any, // Cast to match AuthResponse structure
+      user: data.data,
     };
   },
 };

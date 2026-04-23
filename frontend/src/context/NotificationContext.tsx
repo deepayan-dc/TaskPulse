@@ -17,9 +17,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  const refreshNotifications = () => {
+  const refreshNotifications = async () => {
     if (user) {
-      setNotifications(notificationService.getNotificationsForUser(user.id));
+      const data = await notificationService.getNotificationsForUser(user.id);
+      setNotifications(data);
     } else {
       setNotifications([]);
     }

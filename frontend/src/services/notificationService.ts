@@ -1,29 +1,32 @@
 import { AppNotification } from '../types/notification';
-
-const STORAGE_KEY = 'taskpulse_notifications';
-
-const getStoredNotifications = (): AppNotification[] => {
-  return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-};
-
-const saveNotifications = (notifications: AppNotification[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
-};
+import { apiFetch } from './api';
 
 export const notificationService = {
-  getNotificationsForUser(userId: string): AppNotification[] {
-    return getStoredNotifications()
-      .filter(n => n.targetUserId === userId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  async getNotificationsForUser(userId: string): Promise<AppNotification[]> {
+    try {
+      const response = await apiFetch(`/notifications?userId=${userId}`);
+      const data = await response.json();
+      return data.data.map((n: any) => ({
+        id: String(n.id),
+        message: n.message,
+        createdAt: n.createdAt,
+        read: n.isRead,
+        taskId: String(n.taskId),
+        targetUserId: String(n.userId)
+      }));
+    } catch (e) {
+      console.error('Failed to fetch notifications', e);
+      return [];
+    }
   },
 
+  // Fallback to local behavior since there is no POST/PATCH notification endpoint
   createNotification(
     targetUserId: string,
     message: string,
     taskId: string
   ): AppNotification {
-    const notifications = getStoredNotifications();
-    const newNotification: AppNotification = {
+    return {
       id: `n-${Math.random().toString(36).substring(2, 9)}`,
       message,
       createdAt: new Date().toISOString(),
@@ -31,18 +34,10 @@ export const notificationService = {
       taskId,
       targetUserId,
     };
-    
-    saveNotifications([newNotification, ...notifications]);
-    return newNotification;
   },
 
-  markAsRead(notificationId: string): AppNotification | null {
-    const notifications = getStoredNotifications();
-    const index = notifications.findIndex(n => n.id === notificationId);
-    if (index === -1) return null;
-    
-    notifications[index].read = true;
-    saveNotifications(notifications);
-    return notifications[index];
+  markAsRead(_notificationId: string): AppNotification | null {
+    // API doesn't support markAsRead yet, mock return
+    return null;
   }
 };

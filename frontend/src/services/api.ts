@@ -5,7 +5,7 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   
   const headers = new Headers(options.headers);
   if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+    headers.set('Authorization', `Basic ${token}`);
   }
   
   if (!headers.has('Content-Type')) {

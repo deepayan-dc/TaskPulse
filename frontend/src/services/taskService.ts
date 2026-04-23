@@ -1,129 +1,152 @@
 import { Task, TaskComment, TaskStatus } from '../types/task';
+import { apiFetch } from './api';
 
 const DEFAULT_TIMER_DATA = { startTime: null, isRunning: false, elapsedTime: 0, logs: [] };
 
-const INITIAL_TASKS: Task[] = [
-  {
-    id: 't-1',
-    title: 'Update landing page hero section',
-    description: 'The marketing team requested a new layout for the hero section. Includes new copy and background image.',
-    status: 'In Progress',
-    priority: 'High',
-    dueDate: new Date(Date.now() + 86400000).toISOString(),
-    assignee: { id: '3', name: 'Vikram Patel' },
-    createdBy: { id: '1', name: 'Rajesh Gupta' },
-    createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-    timerData: { ...DEFAULT_TIMER_DATA }
-  },
-  {
-    id: 't-2',
-    title: 'Fix payment gateway timeout',
-    description: 'Customers are reporting timeouts during checkout. Investigate Stripe integration.',
-    status: 'Pending',
-    priority: 'Critical',
-    dueDate: new Date(Date.now() - 86400000).toISOString(),
-    assignee: { id: '4', name: 'Priya Singh' },
-    createdBy: { id: '1', name: 'Rajesh Gupta' },
-    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
-    timerData: { ...DEFAULT_TIMER_DATA }
-  },
-  {
-    id: 't-3',
-    title: 'Write Q3 API Documentation',
-    description: 'Document the new user management endpoints introduced in Q3.',
-    status: 'Completed',
-    priority: 'Medium',
-    dueDate: new Date(Date.now() + 86400000 * 5).toISOString(),
-    assignee: { id: '5', name: 'Arjun Mehta' },
-    createdBy: { id: '2', name: 'Anita Sharma' },
-    createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
-    timerData: { ...DEFAULT_TIMER_DATA, elapsedTime: 7200 } // 2 hours fake time
-  }
-];
-
-let mockTasks: Task[] = JSON.parse(localStorage.getItem('taskpulse_tasks_v2') || 'null') || INITIAL_TASKS;
-let mockComments: TaskComment[] = JSON.parse(localStorage.getItem('taskpulse_comments_v2') || 'null') || [];
-
-const saveToLocal = () => {
-  localStorage.setItem('taskpulse_tasks_v2', JSON.stringify(mockTasks));
-  localStorage.setItem('taskpulse_comments_v2', JSON.stringify(mockComments));
-};
-
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const taskService = {
   async getTasks(): Promise<Task[]> {
-    await delay(300);
-    return [...mockTasks];
+    const response = await apiFetch('/tasks');
+    const data = await response.json();
+    return data.data.map((task: any) => ({
+      id: String(task.id),
+      title: task.title,
+      description: task.description || '',
+      status: task.status,
+      priority: 'Medium', // Backend doesn't have priority, default to Medium
+      dueDate: task.dueDate || new Date().toISOString(),
+      assignee: { 
+        id: String(task.assignedTo.id), 
+        name: task.assignedTo.name 
+      },
+      createdBy: { 
+        id: String(task.createdBy.id), 
+        name: task.createdBy.name 
+      },
+      createdAt: task.createdAt,
+      timerData: { ...DEFAULT_TIMER_DATA }
+    }));
   },
 
   async getTaskById(id: string): Promise<{ task: Task; comments: TaskComment[] }> {
-    await delay(200);
-    const task = mockTasks.find(t => t.id === id);
+    const tasks = await this.getTasks();
+    const task = tasks.find(t => t.id === id);
     if (!task) throw new Error('Task not found');
-    const comments = mockComments.filter(c => c.taskId === id);
-    return { task: { ...task }, comments: [...comments] };
+    
+    let comments: TaskComment[] = [];
+    try {
+      const response = await apiFetch(`/comments/${id}`);
+      const data = await response.json();
+      comments = data.data.map((c: any) => ({
+        id: String(c.id),
+        taskId: String(c.taskId),
+        text: c.content,
+        author: {
+          id: String(c.user.id),
+          name: c.user.name,
+          role: c.user.role
+        },
+        createdAt: c.createdAt
+      }));
+    } catch (e) {
+      console.error('Failed to fetch comments', e);
+    }
+
+    return { task, comments };
   },
 
   async createTask(taskData: Omit<Task, 'id' | 'createdAt' | 'status' | 'timerData'>): Promise<Task> {
-    await delay(300);
-    const newTask: Task = {
-      ...taskData,
-      id: `t-${Math.random().toString(36).substring(2, 9)}`,
-      status: 'Pending',
-      createdAt: new Date().toISOString(),
-      timerData: { startTime: null, isRunning: false, elapsedTime: 0, logs: [] }
+    const response = await apiFetch('/tasks', {
+      method: 'POST',
+      body: JSON.stringify({
+        title: taskData.title,
+        description: taskData.description,
+        assignedToId: taskData.assignee.id,
+        createdById: taskData.createdBy.id,
+        dueDate: taskData.dueDate
+      })
+    });
+    const data = await response.json();
+    const task = data.data;
+    
+    return {
+      id: String(task.id),
+      title: task.title,
+      description: task.description || '',
+      status: task.status,
+      priority: taskData.priority,
+      dueDate: task.dueDate || taskData.dueDate,
+      assignee: taskData.assignee,
+      createdBy: taskData.createdBy,
+      createdAt: task.createdAt,
+      timerData: { ...DEFAULT_TIMER_DATA }
     };
-    mockTasks = [newTask, ...mockTasks];
-    saveToLocal();
-    return { ...newTask };
   },
 
   async updateTaskStatus(taskId: string, status: TaskStatus): Promise<Task> {
-    await delay(200);
-    const index = mockTasks.findIndex(t => t.id === taskId);
-    if (index === -1) throw new Error('Task not found');
+    const response = await apiFetch(`/tasks/${taskId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+    const data = await response.json();
+    const task = data.data;
     
-    mockTasks[index] = { ...mockTasks[index], status };
-    saveToLocal();
-    return { ...mockTasks[index] };
+    return {
+      id: String(task.id),
+      title: task.title,
+      description: task.description || '',
+      status: task.status,
+      priority: 'Medium',
+      dueDate: task.dueDate || new Date().toISOString(),
+      assignee: { 
+        id: String(task.assignedTo?.id || ''), 
+        name: task.assignedTo?.name || '' 
+      },
+      createdBy: { 
+        id: String(task.createdBy?.id || ''), 
+        name: task.createdBy?.name || '' 
+      },
+      createdAt: task.createdAt,
+      timerData: { ...DEFAULT_TIMER_DATA }
+    };
   },
 
   async addComment(taskId: string, commentData: Omit<TaskComment, 'id' | 'taskId' | 'createdAt'>): Promise<TaskComment> {
-    await delay(200);
-    const newComment: TaskComment = {
-      ...commentData,
-      id: `c-${Math.random().toString(36).substring(2, 9)}`,
-      taskId,
-      createdAt: new Date().toISOString(),
+    const response = await apiFetch('/comments', {
+      method: 'POST',
+      body: JSON.stringify({
+        taskId: parseInt(taskId, 10),
+        content: commentData.text,
+        userId: commentData.author.id
+      })
+    });
+    const data = await response.json();
+    const c = data.data;
+    
+    return {
+      id: String(c.id),
+      taskId: String(c.taskId),
+      text: c.content,
+      author: commentData.author,
+      createdAt: c.createdAt
     };
-    mockComments = [...mockComments, newComment];
-    saveToLocal();
-    return { ...newComment };
   },
 
+  // Timer logic remains in memory since backend doesn't support it yet
+  // We keep it so UI doesn't break, but it won't persist across reloads
   async startTimer(taskId: string): Promise<Task> {
-    const index = mockTasks.findIndex(t => t.id === taskId);
-    if (index === -1) throw new Error('Task not found');
-    
-    const task = mockTasks[index];
-    if (task.timerData.isRunning) return task; // Already running
+    const { task } = await this.getTaskById(taskId);
+    if (task.timerData.isRunning) return task;
     
     task.timerData = {
       ...task.timerData,
       startTime: Date.now(),
       isRunning: true
     };
-    
-    saveToLocal();
-    return { ...task };
+    return task;
   },
 
   async pauseTimer(taskId: string): Promise<Task> {
-    const index = mockTasks.findIndex(t => t.id === taskId);
-    if (index === -1) throw new Error('Task not found');
-    
-    const task = mockTasks[index];
+    const { task } = await this.getTaskById(taskId);
     if (!task.timerData.isRunning || !task.timerData.startTime) return task;
     
     const now = Date.now();
@@ -140,12 +163,10 @@ export const taskService = {
         { start: task.timerData.startTime, end: now, duration: durationSec }
       ]
     };
-    
-    saveToLocal();
-    return { ...task };
+    return task;
   },
 
   async stopTimer(taskId: string): Promise<Task> {
-    return this.pauseTimer(taskId); // Logic is the same, caller sets status
+    return this.pauseTimer(taskId);
   }
 };
