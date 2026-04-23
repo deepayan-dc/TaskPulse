@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.routes';
 import taskRoutes from './routes/task.routes';
 import commentRoutes from './routes/comment.routes';
 import notificationRoutes from './routes/notification.routes';
+import webhookRoutes from './routes/webhook.routes';
 import { errorHandler } from './middleware/error.middleware';
 
 const app: Application = express();
@@ -17,6 +18,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/webhook', webhookRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

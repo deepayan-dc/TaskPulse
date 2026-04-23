@@ -1,5 +1,14 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../utils/app-error';
+import { sendWhatsAppMessage } from './whatsapp.service';
+
+const formatDueDate = (dueDate?: Date | null) => {
+  if (!dueDate) {
+    return 'N/A';
+  }
+
+  return dueDate.toISOString().split('T')[0];
+};
 
 export const getTasks = async () => {
   return prisma.task.findMany({
@@ -59,11 +68,30 @@ export const createTask = async (input: {
     },
   });
 
+  if (assignedTo.phone) {
+    await sendWhatsAppMessage(assignedTo.phone, [
+      input.title,
+      `Due: ${formatDueDate(input.dueDate)}`,
+    ]);
+  } else {
+    console.warn(`Skipping WhatsApp assignment alert. No phone number for user ${assignedTo.id}.`);
+  }
+
   return task;
 };
 
 export const updateTaskStatus = async (taskId: number, status: string) => {
-  const existingTask = await prisma.task.findUnique({ where: { id: taskId } });
+  const existingTask = await prisma.task.findUnique({
+    where: { id: taskId },
+    include: {
+      createdBy: {
+        select: {
+          id: true,
+          phone: true,
+        },
+      },
+    },
+  });
   if (!existingTask) {
     throw new AppError('Task not found', 404);
   }
@@ -85,6 +113,19 @@ export const updateTaskStatus = async (taskId: number, status: string) => {
       timeLogs: true,
     },
   });
+
+  if (status === 'DONE') {
+    if (existingTask.createdBy.phone) {
+      await sendWhatsAppMessage(existingTask.createdBy.phone, [
+        existingTask.title,
+        'Completed successfully',
+      ]);
+    } else {
+      console.warn(
+        `Skipping WhatsApp completion alert. No phone number for manager ${existingTask.createdBy.id}.`
+      );
+    }
+  }
 
   return updatedTask;
 };

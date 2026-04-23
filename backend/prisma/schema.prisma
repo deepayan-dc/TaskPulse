@@ -11,6 +11,7 @@ model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
+  phone     String?
   password  String
   role      String   @default("EMPLOYEE")
   createdAt DateTime @default(now())
@@ -72,4 +73,12 @@ model Notification {
   createdAt DateTime @default(now())
   task      Task     @relation(fields: [taskId], references: [id])
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model DeliveryLog {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  message   String
+  status    String
+  createdAt DateTime @default(now())
 }
