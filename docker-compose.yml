@@ -1,19 +1,22 @@
-version: "3.8"
-
 services:
   backend:
     build: ./backend
+    container_name: taskpulse-backend
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URL=file:./dev.db
+      - DATABASE_URL=file:./prisma/dev.db
       - PORT=5000
       - JWT_SECRET=dev_secret_key_123
       - MSG91_API_KEY=dev_key
       - MSG91_TEMPLATE_ID=dev_template
+    restart: unless-stopped
+
   frontend:
     build: ./frontend
+    container_name: taskpulse-frontend
     ports:
-      - "3000:3000"
+      - "5173:5173"
     depends_on:
       - backend
+    restart: unless-stopped
