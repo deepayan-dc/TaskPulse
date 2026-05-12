@@ -1,6 +1,8 @@
 # TaskPulse
 
 TaskPulse is a modern team productivity platform for managing tasks end-to-end with timeline visibility, live collaboration, and operational notifications.
+Below is the link to the flow of the system architecture:
+https://excalidraw.com/#json=InZh-2S2cF47R40hjIMCf,n3FEqZVaUzIWbXGNBvONZg
 
 ## Features
 
