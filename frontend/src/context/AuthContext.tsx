@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, LoginCredentials } from '../types/auth';
+import { User, LoginCredentials, RegisterCredentials } from '../types/auth';
 import { authService } from '../services/auth.service';
 
 interface AuthContextType {
@@ -7,6 +7,7 @@ interface AuthContextType {
   accessToken: string | null;
   isAuthenticated: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
+  register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
 }
 
@@ -52,6 +53,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const register = async (credentials: RegisterCredentials) => {
+    try {
+      const response = await authService.register(credentials);
+      
+      setUser(response.user);
+      setAccessToken(response.accessToken);
+      setIsAuthenticated(true);
+      
+      localStorage.setItem('accessToken', response.accessToken);
+      localStorage.setItem('user', JSON.stringify(response.user));
+    } catch (error) {
+      throw error;
+    }
+  };
+
   const logout = () => {
     setUser(null);
     setAccessToken(null);
@@ -66,7 +82,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, isAuthenticated, login, logout }}>
+    <AuthContext.Provider value={{ user, accessToken, isAuthenticated, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );
