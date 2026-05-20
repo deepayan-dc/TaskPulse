@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'https://taskpulse-m1wo.onrender.com/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('accessToken');
@@ -12,7 +12,10 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
     headers.set('Content-Type', 'application/json');
   }
 
-  const response = await fetch(`${API_URL}/api${endpoint}`, {
+  // Robustly handle trailing "/api" to prevent duplicate "/api/api" routing
+  const baseUrl = API_URL.endsWith('/api') ? API_URL.slice(0, -4) : API_URL;
+
+  const response = await fetch(`${baseUrl}/api${endpoint}`, {
     ...options,
     headers,
   });
