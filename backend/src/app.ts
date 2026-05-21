@@ -1,6 +1,7 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.routes';
+import userRoutes from './routes/user.routes';
 import taskRoutes from './routes/task.routes';
 import commentRoutes from './routes/comment.routes';
 import notificationRoutes from './routes/notification.routes';
@@ -15,6 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/notifications', notificationRoutes);

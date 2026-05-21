@@ -31,4 +31,10 @@ export const authService = {
       user: data.data,
     };
   },
+
+  async getEmployees(): Promise<Array<{ id: string; name: string; email: string; role: string }>> {
+    const response = await apiFetch('/users');
+    const data = await response.json();
+    return data.data;
+  },
 };

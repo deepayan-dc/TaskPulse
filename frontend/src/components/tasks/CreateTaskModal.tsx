@@ -1,16 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { useTasks } from '../../context/TaskContext';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { authService } from '../../services/auth.service';
 import { TaskPriority } from '../../types/task';
-
-// Mock users for the dropdown with manager mapping
-const ALL_EMPLOYEES = [
-  { id: '3', name: 'Vikram Patel', managerId: '1' },
-  { id: '4', name: 'Priya Singh', managerId: '1' },
-  { id: '5', name: 'Arjun Mehta', managerId: '2' },
-];
 
 interface Props {
   isOpen: boolean;
@@ -22,15 +16,31 @@ export const CreateTaskModal = ({ isOpen, onClose }: Props) => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
   
-  // Filter employees so managers only see their direct reports
-  const assignees = ALL_EMPLOYEES.filter(emp => emp.managerId === user?.id);
-  
+  const [assignees, setAssignees] = useState<Array<{ id: string; name: string }>>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [assigneeId, setAssigneeId] = useState(assignees[0]?.id || '');
+  const [assigneeId, setAssigneeId] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('Medium');
   const [dueDate, setDueDate] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Fetch employees dynamically when the modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      const loadEmployees = async () => {
+        try {
+          const list = await authService.getEmployees();
+          setAssignees(list);
+          if (list.length > 0) {
+            setAssigneeId(list[0].id);
+          }
+        } catch (err) {
+          console.error('Failed to load employees for task creation dropdown', err);
+        }
+      };
+      loadEmployees();
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +48,12 @@ export const CreateTaskModal = ({ isOpen, onClose }: Props) => {
     
     setIsSubmitting(true);
     try {
-      const assignee = assignees.find(a => a.id === assigneeId)!;
+      const assignee = assignees.find(a => a.id === assigneeId);
+      if (!assignee) {
+        console.error('No assignee selected or loaded');
+        setIsSubmitting(false);
+        return;
+      }
       
       const createdTask = await createTask({
         title,
@@ -96,11 +111,15 @@ export const CreateTaskModal = ({ isOpen, onClose }: Props) => {
             <select 
               value={assigneeId} 
               onChange={e => setAssigneeId(e.target.value)} 
-              className="w-full glass-input appearance-none"
+              className="w-full glass-input appearance-none bg-gray-900"
             >
-              {assignees.map(a => (
-                <option key={a.id} value={a.id} className="bg-gray-900">{a.name}</option>
-              ))}
+              {assignees.length === 0 ? (
+                <option value="" className="bg-gray-900" disabled>No employees loaded</option>
+              ) : (
+                assignees.map(a => (
+                  <option key={a.id} value={a.id} className="bg-gray-900">{a.name}</option>
+                ))
+              )}
             </select>
           </div>
           
@@ -109,7 +128,7 @@ export const CreateTaskModal = ({ isOpen, onClose }: Props) => {
             <select 
               value={priority} 
               onChange={e => setPriority(e.target.value as TaskPriority)} 
-              className="w-full glass-input appearance-none"
+              className="w-full glass-input appearance-none bg-gray-900"
             >
               <option value="Low" className="bg-gray-900">Low</option>
               <option value="Medium" className="bg-gray-900">Medium</option>
@@ -140,7 +159,7 @@ export const CreateTaskModal = ({ isOpen, onClose }: Props) => {
           </button>
           <button 
             type="submit" 
-            disabled={isSubmitting}
+            disabled={isSubmitting || assignees.length === 0}
             className="btn-primary py-2 px-6 disabled:opacity-70"
           >
             {isSubmitting ? 'Creating...' : 'Create Task'}
