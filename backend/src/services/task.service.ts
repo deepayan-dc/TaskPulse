@@ -54,6 +54,7 @@ export const createTask = async (input: {
       assignedToId: input.assignedToId,
       createdById: input.createdById,
       dueDate: input.dueDate,
+      status: 'Pending',
       notifications: {
         create: {
           userId: input.assignedToId,
@@ -114,7 +115,7 @@ export const updateTaskStatus = async (taskId: number, status: string) => {
     },
   });
 
-  if (status === 'DONE') {
+  if (status === 'Completed' || status === 'DONE') {
     if (existingTask.createdBy.phone) {
       await sendWhatsAppMessage(existingTask.createdBy.phone, [
         existingTask.title,

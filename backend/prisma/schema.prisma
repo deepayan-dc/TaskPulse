@@ -27,7 +27,7 @@ model Task {
   id            Int            @id @default(autoincrement())
   title         String
   description   String?
-  status        String         @default("TODO")
+  status        String         @default("Pending")
   assignedToId  String
   createdById   String
   dueDate       DateTime?

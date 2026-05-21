@@ -18,7 +18,16 @@ export const parseTaskId = (value: string): number => {
   return taskId;
 };
 
-const validTaskStatuses = ['TODO', 'IN_PROGRESS', 'DONE'] as const;
+const validTaskStatuses = [
+  'Pending',
+  'In Progress',
+  'Completed',
+  'Approved',
+  'Returned',
+  'TODO',
+  'IN_PROGRESS',
+  'DONE'
+] as const;
 type TaskStatusValue = (typeof validTaskStatuses)[number];
 
 export const parseTaskStatus = (value: unknown): TaskStatusValue => {
@@ -27,7 +36,7 @@ export const parseTaskStatus = (value: unknown): TaskStatusValue => {
   }
 
   if (!validTaskStatuses.includes(value as TaskStatusValue)) {
-    throw new AppError('Invalid status. Use TODO, IN_PROGRESS, or DONE', 400);
+    throw new AppError('Invalid status. Use Pending, In Progress, Completed, Approved, or Returned', 400);
   }
 
   return value as TaskStatusValue;
