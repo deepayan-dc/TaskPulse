@@ -6,19 +6,21 @@ https://excalidraw.com/#json=InZh-2S2cF47R40hjIMCf,n3FEqZVaUzIWbXGNBvONZg
 
 ## Features
 
-- Task lifecycle management (create, assign, progress, review, complete)
+- Task lifecycle management (create, assign, progress, complete)
 - Timer tracking for effort and productivity visibility
-- Role-based access for managers and employees
+- Role-based users (MANAGER and EMPLOYEE)
 - Task-level comments for collaboration
-- In-app notifications for assignments and updates
-- WhatsApp integration using MSG91 (sandbox-ready)
+- In-app notifications for assignments and status changes
+- WhatsApp notifications via Gupshup, with a delivery-log audit trail
 
 ## Tech Stack
 
 - **Frontend:** React, TypeScript, Tailwind CSS, Vite
 - **Backend:** Node.js, Express, TypeScript
-- **Database/ORM:** PostgreSQL + Prisma
+- **Database/ORM:** SQLite + Prisma
+- **Auth:** HTTP Basic auth (bcrypt-hashed passwords)
 - **Realtime:** Socket.IO
+- **Messaging:** Gupshup WhatsApp API
 
 ## Project Structure
 
@@ -37,10 +39,12 @@ TaskPulse/
 cd backend
 npm install
 npm run prisma:generate
+npm run prisma:migrate   # apply migrations to the SQLite database
+npm run prisma:seed      # optional: seed sample users/tasks
 npm run dev
 ```
 
-Backend default: `http://localhost:5000`
+Backend default: `http://localhost:5000` (health check at `/health`)
 
 ### 2) Frontend
 
@@ -54,16 +58,17 @@ Frontend default: `http://localhost:5173`
 
 ## Docker Setup
 
-Run the full stack (frontend + backend + postgres) from project root:
+Run the full stack (frontend + backend) from project root:
 
 ```bash
 docker compose up --build
 ```
 
 Services:
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost:5173`
 - Backend: `http://localhost:5000`
-- Postgres: `localhost:5432`
+
+The database is SQLite stored on disk inside the backend container (`DATABASE_URL=file:./prisma/dev.db`), so no separate database service is required.
 
 Stop services:
 
@@ -73,12 +78,14 @@ docker compose down
 
 ## Environment Variables
 
-Backend expects:
+Backend expects (see `backend/.env.example`):
 
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `MSG91_API_KEY`
-- `MSG91_TEMPLATE_ID`
+- `DATABASE_URL` — SQLite connection string, e.g. `file:./dev.db`
+- `PORT` — backend port (default `5000`)
+- `JWT_SECRET` — reserved for token auth (the active request auth is HTTP Basic)
+- `GUPSHUP_API_KEY` — Gupshup WhatsApp API key
+- `GUPSHUP_SOURCE_NUMBER` — Gupshup sender number
+- `GUPSHUP_APP_NAME` — Gupshup app/source name (default `TaskPulseNotif`)
 
 You can supply them in `backend/.env` for local development and via compose environment for containers.
 
