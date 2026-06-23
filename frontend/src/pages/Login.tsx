@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckSquare, Lock, Mail, ArrowRight, AlertCircle, User } from 'lucide-react';
+import { CheckSquare, Lock, Mail, ArrowRight, AlertCircle, User, Phone } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const Login = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'EMPLOYEE' | 'MANAGER'>('EMPLOYEE');
@@ -21,7 +22,7 @@ const Login = () => {
     
     try {
       if (isRegister) {
-        await register({ email, password, role, name: name.trim() || undefined });
+        await register({ email, password, role, name: name.trim() || undefined, phone: phone.trim() || undefined });
       } else {
         await login({ email, password });
       }
@@ -74,6 +75,25 @@ const Login = () => {
                     placeholder="John Doe"
                   />
                 </div>
+              </div>
+            )}
+
+            {isRegister && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 ml-1">WhatsApp Number</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full glass-input pl-12"
+                    placeholder="9625587090"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 ml-1">
+                  Used for WhatsApp task alerts. Include country code, or a 10-digit number defaults to +91.
+                </p>
               </div>
             )}
 

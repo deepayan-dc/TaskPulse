@@ -2,7 +2,6 @@ import { prisma } from '../lib/prisma';
 import { config } from '../config';
 
 const GUPSHUP_API_URL = 'https://api.gupshup.io/wa/api/v1/msg';
-const GUPSHUP_TEMPLATE_ID = 'common_misc_1';
 
 type DeliveryLogCreateArgs = {
   data: {
@@ -45,7 +44,7 @@ export const sendWhatsAppMessage = async (to: string, params: [string, string]):
   const messagePayload = {
     type: 'template',
     template: {
-      id: GUPSHUP_TEMPLATE_ID,
+      id: config.gupshupTemplateId,
       params,
     },
   };
@@ -57,7 +56,7 @@ export const sendWhatsAppMessage = async (to: string, params: [string, string]):
     source: config.gupshupSourceNumber,
     destination: to,
     message,
-    'src.name': process.env.GUPSHUP_SRC_NAME || 'TaskPulseNotif',
+    'src.name': config.gupshupSrcName,
   });
 
   try {

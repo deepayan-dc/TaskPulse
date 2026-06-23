@@ -8,5 +8,8 @@ export const config = {
   dbUrl: process.env.DATABASE_URL,
   gupshupApiKey: process.env.GUPSHUP_API_KEY,
   gupshupSourceNumber: process.env.GUPSHUP_SOURCE_NUMBER,
-  TaskPulseNotif: process.env.GUPSHUP_SRC_NAME || 'TaskPulseNotif',
+  gupshupSrcName: process.env.GUPSHUP_SRC_NAME || 'TaskPulseNotif',
+  gupshupTemplateId: process.env.GUPSHUP_TEMPLATE_ID || 'common_misc_1',
+  // Default country code prepended to 10-digit local numbers (India = 91).
+  defaultCountryCode: process.env.DEFAULT_COUNTRY_CODE || '91',
 };

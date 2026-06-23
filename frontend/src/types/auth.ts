@@ -5,6 +5,7 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  phone?: string | null;
 }
 
 export interface AuthResponse {
@@ -23,4 +24,5 @@ export interface RegisterCredentials {
   password?: string;
   role: Role;
   name?: string;
+  phone?: string;
 }

@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { loginUser, registerUser } from '../services/auth.service';
-import { requireString } from '../utils/validators';
+import { normalizePhone, requireString } from '../utils/validators';
 import { AppError } from '../utils/app-error';
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
@@ -30,8 +30,9 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     }
 
     const name = req.body?.name ? requireString(req.body.name, 'name') : email.split('@')[0];
+    const phone = normalizePhone(req.body?.phone);
 
-    const data = await registerUser({ email, password, role, name });
+    const data = await registerUser({ email, password, role, name, phone });
 
     res.status(201).json({
       message: 'Registration successful',

@@ -23,7 +23,13 @@ export const loginUser = async (email: string, password: string) => {
   };
 };
 
-export const registerUser = async (userData: { email: string; password: string; role: string; name: string }) => {
+export const registerUser = async (userData: {
+  email: string;
+  password: string;
+  role: string;
+  name: string;
+  phone?: string;
+}) => {
   const existingUser = await prisma.user.findUnique({ where: { email: userData.email } });
   if (existingUser) {
     throw new AppError('User with this email already exists', 409);
@@ -37,6 +43,7 @@ export const registerUser = async (userData: { email: string; password: string; 
       password: hashedPassword,
       role: userData.role,
       name: userData.name,
+      phone: userData.phone,
     },
   });
 
@@ -45,5 +52,6 @@ export const registerUser = async (userData: { email: string; password: string; 
     name: newUser.name,
     email: newUser.email,
     role: newUser.role,
+    phone: newUser.phone,
   };
 };
