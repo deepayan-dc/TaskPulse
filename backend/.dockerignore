@@ -1,3 +1,6 @@
 node_modules
 dist
 .env
+# Don't bake a stale local SQLite DB into the image; the build seeds a fresh one.
+prisma/dev.db
+prisma/*.db

@@ -29,8 +29,13 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
       throw new AppError('Role must be either MANAGER or EMPLOYEE', 400);
     }
 
-    const name = req.body?.name ? requireString(req.body.name, 'name') : email.split('@')[0];
+    // Name and phone are required: the WhatsApp flow traces a user's name from
+    // their phone number, so every user must have both stored in the DB.
+    const name = requireString(req.body?.name, 'name');
     const phone = normalizePhone(req.body?.phone);
+    if (!phone) {
+      throw new AppError('phone is required', 400);
+    }
 
     const data = await registerUser({ email, password, role, name, phone });
 

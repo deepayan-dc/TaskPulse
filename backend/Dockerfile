@@ -7,8 +7,9 @@ RUN npm install
 
 COPY . .
 
-# Build-time DB URL so Prisma can run inside image build
-ENV DATABASE_URL="file:./prisma/dev.db"
+# Absolute DB path so the Prisma CLI and the Prisma client resolve to the SAME
+# file at both build and runtime (a relative path resolves differently for each).
+ENV DATABASE_URL="file:/app/prisma/dev.db"
 
 RUN npx prisma generate
 RUN npx prisma db push
@@ -19,4 +20,8 @@ RUN npx prisma db seed
 
 EXPOSE 5000
 
+# Additive schema changes against the persistent (volume-backed) DB are applied
+# at app startup via the Prisma client (see src/lib/ensure-schema.ts), which
+# always targets the same DB file the app reads — avoiding the CLI's relative
+# path-resolution mismatch.
 CMD ["npm", "run", "dev"]

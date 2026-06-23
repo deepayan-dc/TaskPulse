@@ -82,3 +82,15 @@ model DeliveryLog {
   status    String
   createdAt DateTime @default(now())
 }
+
+// Per-user WhatsApp conversation history for the chat assistant.
+// Keyed by the user's normalized phone number; one row per message turn.
+model ConversationMessage {
+  id        Int      @id @default(autoincrement())
+  phone     String
+  role      String   // 'user' | 'assistant'
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([phone, createdAt])
+}

@@ -1,14 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../utils/app-error';
-import { sendWhatsAppMessage } from './whatsapp.service';
-
-const formatDueDate = (dueDate?: Date | null) => {
-  if (!dueDate) {
-    return 'N/A';
-  }
-
-  return dueDate.toISOString().split('T')[0];
-};
+import { sendTaskPulseNotification } from './whatsapp.service';
 
 export const getTasks = async () => {
   return prisma.task.findMany({
@@ -70,10 +62,11 @@ export const createTask = async (input: {
   });
 
   if (assignedTo.phone) {
-    await sendWhatsAppMessage(assignedTo.phone, [
-      input.title,
-      `Due: ${formatDueDate(input.dueDate)}`,
-    ]);
+    await sendTaskPulseNotification({
+      recipientPhone: assignedTo.phone,
+      fallbackName: assignedTo.name,
+      taskId: task.id,
+    });
   } else {
     console.warn(`Skipping WhatsApp assignment alert. No phone number for user ${assignedTo.id}.`);
   }
@@ -117,10 +110,10 @@ export const updateTaskStatus = async (taskId: number, status: string) => {
 
   if (status === 'Completed' || status === 'DONE') {
     if (existingTask.createdBy.phone) {
-      await sendWhatsAppMessage(existingTask.createdBy.phone, [
-        existingTask.title,
-        'Completed successfully',
-      ]);
+      await sendTaskPulseNotification({
+        recipientPhone: existingTask.createdBy.phone,
+        taskId: existingTask.id,
+      });
     } else {
       console.warn(
         `Skipping WhatsApp completion alert. No phone number for manager ${existingTask.createdBy.id}.`

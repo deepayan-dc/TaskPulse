@@ -73,6 +73,7 @@ const Login = () => {
                     onChange={(e) => setName(e.target.value)}
                     className="w-full glass-input pl-12"
                     placeholder="John Doe"
+                    required
                   />
                 </div>
               </div>
@@ -89,10 +90,11 @@ const Login = () => {
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full glass-input pl-12"
                     placeholder="9625587090"
+                    required
                   />
                 </div>
                 <p className="text-xs text-gray-500 ml-1">
-                  Used for WhatsApp task alerts. Include country code, or a 10-digit number defaults to +91.
+                  Used for WhatsApp task alerts and to identify you by number. Include country code, or a 10-digit number defaults to +91.
                 </p>
               </div>
             )}
