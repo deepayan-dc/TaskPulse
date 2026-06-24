@@ -7,15 +7,93 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  gstin     String?
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  users     User[]
+}
+
+// Tenant wallet (balance in paise). AI + WhatsApp usage is billed against this.
+model Wallet {
+  id             String   @id @default(uuid())
+  organizationId String   @unique
+  balancePaise   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id                String   @id @default(uuid())
+  organizationId    String
+  type              String   // CREDIT | DEBIT
+  amountPaise       Int
+  balanceAfterPaise Int
+  source            String   // RAZORPAY_TOPUP | INVOICE | ADJUSTMENT
+  reference         String?  // razorpay payment id, invoice id, etc.
+  note              String?
+  createdAt         DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
+// One metering row per billable event (a WhatsApp message, or an AI call).
+model UsageRecord {
+  id             String   @id @default(uuid())
+  organizationId String
+  kind           String   // WHATSAPP | AI
+  units          Int      @default(1) // messages (WhatsApp)
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  costPaise      Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, kind, createdAt])
+}
+
+model Invoice {
+  id             String   @id @default(uuid())
+  organizationId String
+  invoiceNumber  String   @unique
+  periodStart    DateTime
+  periodEnd      DateTime
+  whatsappPaise  Int      @default(0)
+  aiPaise        Int      @default(0)
+  subtotalPaise  Int      @default(0)
+  gstPercent     Int      @default(18)
+  gstPaise       Int      @default(0)
+  totalPaise     Int      @default(0)
+  status         String   @default("UNPAID") // PAID | UNPAID
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
   phone     String?
   password  String
-  role      String   @default("EMPLOYEE")
+  // Permission role within TaskPulse: ADMIN (full access incl. billing) | MEMBER.
+  role        String @default("MEMBER")
+  // Job title within the organization (e.g. Manager, Developer, Intern) — purely
+  // organizational, independent of the permission role.
+  designation String?
+  mustResetPassword Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Multi-tenancy: a user belongs to an organization (tenant); an employee is
+  // onboarded under a specific manager.
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  managerId      String?
+  manager        User?         @relation("ManagerEmployees", fields: [managerId], references: [id])
+  employees      User[]        @relation("ManagerEmployees")
+
   tasksAssigned Task[]         @relation("TaskAssignee")
   tasksCreated  Task[]         @relation("TaskCreator")
   comments      Comment[]

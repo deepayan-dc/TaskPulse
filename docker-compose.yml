@@ -15,7 +15,26 @@ services:
       - GUPSHUP_SOURCE_NUMBER=919625587090
       - GUPSHUP_SRC_NAME=Dhabawhatsapp
       - GUPSHUP_TEMPLATE_ID=3a09588b-f293-4134-9b72-b0f0519000a6
+      # Optional approved template for the onboarding welcome (leave blank to use
+      # a session text, which only delivers within the recipient's 24h window).
+      - GUPSHUP_ONBOARDING_TEMPLATE_ID=${GUPSHUP_ONBOARDING_TEMPLATE_ID:-}
+      - GUPSHUP_REMOVAL_TEMPLATE_ID=${GUPSHUP_REMOVAL_TEMPLATE_ID:-}
       - DEFAULT_COUNTRY_CODE=91
+      # Billing / pricing (paise). Override via root .env.
+      - WHATSAPP_PRICE_PAISE=${WHATSAPP_PRICE_PAISE:-50}
+      - AI_INPUT_PAISE_PER_MTOK=${AI_INPUT_PAISE_PER_MTOK:-50000}
+      - AI_OUTPUT_PAISE_PER_MTOK=${AI_OUTPUT_PAISE_PER_MTOK:-250000}
+      - GST_PERCENT=${GST_PERCENT:-18}
+      - LOW_BALANCE_PAISE=${LOW_BALANCE_PAISE:-50000}
+      - COMPANY_NAME=${COMPANY_NAME:-QverLabs}
+      - COMPANY_GSTIN=${COMPANY_GSTIN:-}
+      - COMPANY_ADDRESS=${COMPANY_ADDRESS:-}
+      - COMPANY_STATE=${COMPANY_STATE:-}
+      - INVOICE_PREFIX=${INVOICE_PREFIX:-TP}
+      # Razorpay LIVE keys
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID:-}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET:-}
+      - RAZORPAY_WEBHOOK_SECRET=${RAZORPAY_WEBHOOK_SECRET:-}
       # LLM classification of inbound WhatsApp messages. Set your Claude API key here.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - FRONTEND_URL=http://localhost:5173

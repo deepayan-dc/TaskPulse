@@ -2,8 +2,24 @@ import { prisma } from '../lib/prisma';
 import { AppError } from '../utils/app-error';
 import { sendTaskPulseNotification } from './whatsapp.service';
 
-export const getTasks = async () => {
+// A user may only see/act on tasks they created (manager) or are assigned (employee).
+export const taskScopeWhere = (userId: string) => ({
+  OR: [{ createdById: userId }, { assignedToId: userId }],
+});
+
+export const assertTaskAccess = async (taskId: number, userId: string) => {
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, ...taskScopeWhere(userId) },
+    select: { id: true },
+  });
+  if (!task) {
+    throw new AppError('Task not found, or you do not have access to it', 404);
+  }
+};
+
+export const getTasks = async (userId: string) => {
   return prisma.task.findMany({
+    where: taskScopeWhere(userId),
     orderBy: { createdAt: 'desc' },
     include: {
       assignedTo: { select: { id: true, name: true, email: true } },
@@ -66,6 +82,7 @@ export const createTask = async (input: {
       recipientPhone: assignedTo.phone,
       fallbackName: assignedTo.name,
       taskId: task.id,
+      organizationId: assignedTo.organizationId,
     });
   } else {
     console.warn(`Skipping WhatsApp assignment alert. No phone number for user ${assignedTo.id}.`);
@@ -82,6 +99,7 @@ export const updateTaskStatus = async (taskId: number, status: string) => {
         select: {
           id: true,
           phone: true,
+          organizationId: true,
         },
       },
     },
@@ -113,6 +131,7 @@ export const updateTaskStatus = async (taskId: number, status: string) => {
       await sendTaskPulseNotification({
         recipientPhone: existingTask.createdBy.phone,
         taskId: existingTask.id,
+        organizationId: existingTask.createdBy.organizationId,
       });
     } else {
       console.warn(

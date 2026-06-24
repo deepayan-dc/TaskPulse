@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckSquare, Lock, Mail, ArrowRight, AlertCircle, User, Phone } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, User, Phone, Building2, Briefcase } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import QverLabsLogo from '../components/QverLabsLogo';
 
 const Login = () => {
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [designation, setDesignation] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'EMPLOYEE' | 'MANAGER'>('EMPLOYEE');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -22,7 +24,14 @@ const Login = () => {
     
     try {
       if (isRegister) {
-        await register({ email, password, role, name: name.trim() || undefined, phone: phone.trim() || undefined });
+        await register({
+          email,
+          password,
+          name: name.trim() || undefined,
+          phone: phone.trim() || undefined,
+          organizationName: organizationName.trim(),
+          designation: designation.trim() || undefined,
+        });
       } else {
         await login({ email, password });
       }
@@ -42,14 +51,16 @@ const Login = () => {
 
       <div className="w-full max-w-md relative z-10">
         <div className="text-center mb-8 animate-fade-in">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-neon">
-            <CheckSquare className="text-white w-8 h-8" />
+          <div className="mx-auto mb-6 w-fit px-8 py-5 rounded-2xl bg-gradient-to-r from-primary-500 to-accent-500 shadow-neon">
+            <QverLabsLogo height={56} />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2 transition-all duration-300">
-            {isRegister ? 'Create Account' : 'Welcome Back'}
+            {isRegister ? 'Create your organization' : 'Welcome Back'}
           </h1>
           <p className="text-gray-400 transition-all duration-300">
-            {isRegister ? 'Register for a new TaskPulse account' : 'Sign in to TaskPulse to continue'}
+            {isRegister
+              ? 'Set up a new organization on TaskPulse — you become its admin.'
+              : 'Sign in to your organization. Members: use the credentials your admin shared.'}
           </p>
         </div>
 
@@ -136,42 +147,49 @@ const Login = () => {
 
             {isRegister && (
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-300 ml-1">Select Role</label>
-                <div className="grid grid-cols-2 gap-4">
-                  <button
-                    type="button"
-                    onClick={() => setRole('EMPLOYEE')}
-                    className={`p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center ${
-                      role === 'EMPLOYEE'
-                        ? 'bg-primary-500/10 border-primary-500 text-primary-400 shadow-neon scale-102'
-                        : 'bg-gray-900/40 border-gray-800 text-gray-400 hover:border-gray-700'
-                    }`}
-                  >
-                    <div className="text-sm font-semibold">Employee</div>
-                    <div className="text-[10px] text-gray-500 mt-1">Track tasks & logs</div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('MANAGER')}
-                    className={`p-4 rounded-xl border text-center transition-all duration-300 flex flex-col items-center justify-center ${
-                      role === 'MANAGER'
-                        ? 'bg-accent-500/10 border-accent-500 text-accent-400 shadow-neon scale-102'
-                        : 'bg-gray-900/40 border-gray-800 text-gray-400 hover:border-gray-700'
-                    }`}
-                  >
-                    <div className="text-sm font-semibold">Manager</div>
-                    <div className="text-[10px] text-gray-500 mt-1">Assign tasks & view team</div>
-                  </button>
+                <label className="text-sm font-medium text-gray-300 ml-1">Organization Name</label>
+                <div className="relative">
+                  <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <input
+                    type="text"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    className="w-full glass-input pl-12"
+                    placeholder="Acme Inc."
+                    required
+                  />
                 </div>
+                <p className="text-xs text-gray-500 ml-1">
+                  Your company. Members you onboard will belong to this organization.
+                </p>
               </div>
             )}
 
-            <button 
-              type="submit" 
+            {isRegister && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-300 ml-1">Your Designation (optional)</label>
+                <div className="relative">
+                  <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                  <input
+                    type="text"
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                    className="w-full glass-input pl-12"
+                    placeholder="Manager / Founder"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 ml-1">
+                  Your job title (separate from your access role). You'll be an Admin.
+                </p>
+              </div>
+            )}
+
+            <button
+              type="submit"
               disabled={isLoading}
               className="w-full btn-primary flex items-center justify-center gap-2 group mt-6 disabled:opacity-70 disabled:cursor-not-allowed"
             >
-              <span>{isLoading ? (isRegister ? 'Creating Account...' : 'Signing In...') : (isRegister ? 'Register' : 'Sign In')}</span>
+              <span>{isLoading ? (isRegister ? 'Creating organization...' : 'Signing In...') : (isRegister ? 'Create Organization' : 'Sign In')}</span>
               {!isLoading && <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />}
             </button>
           </form>
@@ -194,7 +212,7 @@ const Login = () => {
             </>
           ) : (
             <>
-              New to TaskPulse?{' '}
+              New here, with no organization yet?{' '}
               <button
                 type="button"
                 onClick={() => {
@@ -203,7 +221,7 @@ const Login = () => {
                 }}
                 className="text-primary-400 hover:text-primary-300 font-medium transition-colors"
               >
-                Register Now
+                Create a new organization
               </button>
             </>
           )}

@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { normalizePhone } from '../utils/validators';
 import { sendTaskPulseNotification, sendWhatsAppText } from './whatsapp.service';
 import { runAgent, ChatTurn } from './agent.service';
+import { recordAiUsage } from './usage.service';
 
 const HISTORY_LIMIT = 20;
 
@@ -14,7 +15,10 @@ const GREETING_FALLBACK =
  * classifier, falling back to a keyword match when the API key is missing or
  * the call fails.
  */
-export const isGreeting = async (text: string): Promise<boolean> => {
+export const isGreeting = async (
+  text: string,
+  organizationId?: string | null
+): Promise<boolean> => {
   const trimmed = (text || '').trim();
   if (!trimmed) return false;
 
@@ -30,6 +34,13 @@ export const isGreeting = async (text: string): Promise<boolean> => {
           '"hello", "hey", "good morning") with no other request, otherwise OTHER.',
         messages: [{ role: 'user', content: trimmed }],
       });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const u = ((response as any).usage ?? {}) as Record<string, number>;
+      void recordAiUsage(
+        organizationId,
+        (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0),
+        u.output_tokens ?? 0
+      );
       const block = response.content.find((b) => b.type === 'text');
       const label = block && block.type === 'text' ? block.text.trim().toUpperCase() : '';
       if (label.startsWith('GREETING')) return true;
@@ -122,18 +133,41 @@ const handleInboundMessage = async (msg: InboundTextMessage): Promise<void> => {
   }
 
   // Greeting → branded welcome template (replied to the sender).
-  if (await isGreeting(msg.text)) {
+  if (await isGreeting(msg.text, user.organizationId)) {
     console.log(`Greeting from ${user.name} (${from}); sending welcome template.`);
-    await sendTaskPulseNotification({ recipientPhone: from, fallbackName: user.name });
+    await sendTaskPulseNotification({
+      recipientPhone: from,
+      fallbackName: user.name,
+      organizationId: user.organizationId,
+    });
     return;
   }
 
   // Everything else → conversational agent.
   console.log(`Agent handling message from ${user.name} (${from}): "${msg.text}"`);
   const history = await loadHistory(from);
-  const reply = await runAgent({ id: user.id, name: user.name, role: user.role }, history, msg.text);
-  await sendWhatsAppText(from, reply);
+  const reply = await runAgent(
+    { id: user.id, name: user.name, role: user.role, organizationId: user.organizationId },
+    history,
+    msg.text
+  );
+  await sendWhatsAppText(from, reply, user.organizationId);
   await persistTurn(from, msg.text, reply);
+};
+
+// Serialize processing per sender so rapid multi-turn messages (e.g. an action
+// followed by "yes") don't run in parallel and race on conversation history.
+const queues = new Map<string, Promise<unknown>>();
+const runSerialized = (key: string, task: () => Promise<void>): Promise<void> => {
+  const prev = queues.get(key) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(() => task());
+  queues.set(
+    key,
+    next.finally(() => {
+      if (queues.get(key) === next) queues.delete(key);
+    })
+  );
+  return next;
 };
 
 /**
@@ -144,7 +178,8 @@ export const processInboundGupshupMessage = async (body: unknown): Promise<void>
   try {
     const messages = extractTextMessages(body);
     for (const msg of messages) {
-      await handleInboundMessage(msg);
+      const key = normalizePhone(msg.from) || msg.from || 'unknown';
+      await runSerialized(key, () => handleInboundMessage(msg));
     }
   } catch (error) {
     console.error('Failed to process inbound Gupshup message:', error);

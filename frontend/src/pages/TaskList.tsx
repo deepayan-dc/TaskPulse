@@ -23,7 +23,7 @@ const TaskList = () => {
     if (priorityFilter !== 'All' && task.priority !== priorityFilter) return false;
     // If employee, maybe filter to their tasks? The prompt says "Sidebar includes: My Tasks". 
     // So if Employee, we might only show their tasks on the 'Tasks' page. Let's do that.
-    if (user?.role === 'EMPLOYEE' && task.assignee.id !== user.id) return false;
+    if (user?.role === 'MEMBER' && task.assignee.id !== user.id) return false;
     return true;
   });
 
@@ -34,7 +34,7 @@ const TaskList = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white mb-1">
-            {user?.role === 'MANAGER' ? 'All Tasks' : 'My Tasks'}
+            {user?.role === 'ADMIN' ? 'All Tasks' : 'My Tasks'}
           </h1>
           <p className="text-sm text-gray-400">Manage and track project tasks.</p>
         </div>
@@ -55,7 +55,7 @@ const TaskList = () => {
             </button>
           </div>
           
-          {user?.role === 'MANAGER' && (
+          {user?.role === 'ADMIN' && (
             <button 
               onClick={() => setIsModalOpen(true)}
               className="btn-primary flex items-center gap-2 py-2"

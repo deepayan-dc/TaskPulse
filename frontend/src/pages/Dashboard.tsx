@@ -17,7 +17,7 @@ const Dashboard = () => {
   // Filter tasks based on role:
   // Employees only see tasks assigned to them. Managers see all tasks.
   const myTasks = tasks.filter(task => {
-    if (user?.role === 'EMPLOYEE') {
+    if (user?.role === 'MEMBER') {
       return task.assignee.id === user.id;
     }
     return true;
@@ -165,7 +165,7 @@ const Dashboard = () => {
             <h1 className="text-2xl font-bold text-white mb-1">Welcome to TaskPulse</h1>
             <p className="text-sm text-gray-400">Here's your live control center.</p>
           </div>
-          {user?.role === 'MANAGER' && (
+          {user?.role === 'ADMIN' && (
             <button 
               onClick={() => setIsModalOpen(true)} 
               className="btn-primary flex items-center gap-2 py-2.5"
@@ -184,7 +184,7 @@ const Dashboard = () => {
           
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-white">No active tasks found</h2>
-            {user?.role === 'MANAGER' ? (
+            {user?.role === 'ADMIN' ? (
               <p className="text-gray-400 max-w-md">
                 Start building your project workflow. Create your very first task to assign it to an employee and track real-time progress.
               </p>
@@ -195,7 +195,7 @@ const Dashboard = () => {
             )}
           </div>
 
-          {user?.role === 'MANAGER' ? (
+          {user?.role === 'ADMIN' ? (
             <button 
               onClick={() => setIsModalOpen(true)}
               className="btn-primary flex items-center gap-2 py-2.5 px-6"
@@ -224,7 +224,7 @@ const Dashboard = () => {
           <p className="text-sm text-gray-400">Welcome back, <span className="text-white font-medium">{user?.name}</span>. Here's your live update center.</p>
         </div>
         
-        {user?.role === 'MANAGER' && (
+        {user?.role === 'ADMIN' && (
           <button 
             onClick={() => setIsModalOpen(true)} 
             className="btn-primary flex items-center gap-2 py-2.5"

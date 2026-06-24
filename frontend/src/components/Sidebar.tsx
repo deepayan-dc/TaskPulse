@@ -1,34 +1,44 @@
-import { LayoutDashboard, CheckSquare, Bell, Settings } from 'lucide-react';
+import { LayoutDashboard, CheckSquare, Bell, Settings, Users, Wallet } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { clsx } from 'clsx';
 import { useAuth } from '../context/AuthContext';
+import QverLabsLogo from './QverLabsLogo';
 
 const Sidebar = () => {
   const { user } = useAuth();
+  const org = user?.organization;
 
-  const managerNavItems = [
+  const adminNavItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
     { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
+    { icon: Users, label: 'Onboard Team', path: '/onboard-team' },
+    { icon: Wallet, label: 'Billing & Usage', path: '/billing' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
-  const employeeNavItems = [
+  const memberNavItems = [
     { icon: CheckSquare, label: 'My Tasks', path: '/tasks' },
     { icon: Bell, label: 'Notifications', path: '/notifications' },
   ];
 
-  const navItems = user?.role === 'MANAGER' ? managerNavItems : employeeNavItems;
+  const navItems = user?.role === 'ADMIN' ? adminNavItems : memberNavItems;
 
   return (
     <aside className="w-64 glass-panel m-4 flex flex-col hidden md:flex">
       <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
-          <CheckSquare className="text-white w-5 h-5" />
-        </div>
-        <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-accent-400">
-          TaskPulse
-        </h1>
+        {org?.logoUrl ? (
+          <img src={org.logoUrl} alt={org.name} className="h-9 max-w-[180px] object-contain" />
+        ) : (
+          <>
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center">
+              <CheckSquare className="text-white w-5 h-5" />
+            </div>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-accent-400">
+              {org?.name || 'TaskPulse'}
+            </h1>
+          </>
+        )}
       </div>
 
       <nav className="flex-1 px-4 py-6 space-y-2">
@@ -54,12 +64,9 @@ const Sidebar = () => {
         })}
       </nav>
 
-      <div className="p-4 m-4 rounded-xl bg-gradient-to-br from-primary-500/10 to-accent-500/10 border border-white/5">
-        <div className="text-sm text-gray-300 font-medium mb-1">Need help?</div>
-        <div className="text-xs text-gray-500 mb-3">Check our docs</div>
-        <button className="w-full py-2 text-xs font-semibold rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-          Documentation
-        </button>
+      <div className="m-4 rounded-xl bg-gradient-to-r from-primary-500 to-accent-500 shadow-neon px-4 py-3 flex flex-col items-center gap-1">
+        <div className="text-[10px] uppercase tracking-wide text-white/70">Powered by</div>
+        <QverLabsLogo height={22} />
       </div>
     </aside>
   );

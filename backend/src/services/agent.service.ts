@@ -1,9 +1,11 @@
 import { anthropic } from '../lib/anthropic';
 import { prisma } from '../lib/prisma';
 import { createTask, updateTaskStatus } from './task.service';
+import { onboardEmployees, deleteEmployee } from './onboarding.service';
+import { recordAiUsage } from './usage.service';
 import { parseTaskStatus } from '../utils/validators';
 
-export type AgentUser = { id: string; name: string; role: string };
+export type AgentUser = { id: string; name: string; role: string; organizationId?: string | null };
 export type ChatTurn = { role: 'user' | 'assistant'; content: string };
 
 const MODEL = 'claude-opus-4-8';
@@ -14,7 +16,7 @@ const TASK_STATUSES = ['Pending', 'In Progress', 'Completed', 'Approved', 'Retur
 //  - EMPLOYEE: tasks assigned to them
 //  - MANAGER:  tasks they created (their team's tasks)
 const taskScope = (user: AgentUser) =>
-  user.role === 'MANAGER' ? { createdById: user.id } : { assignedToId: user.id };
+  user.role === 'ADMIN' ? { createdById: user.id } : { assignedToId: user.id };
 
 const COMMON_TOOLS = [
   {
@@ -70,7 +72,8 @@ const COMMON_TOOLS = [
 const MANAGER_TOOLS = [
   {
     name: 'list_employees',
-    description: 'List employees (id, name, email) so you can pick who to assign a task to.',
+    description:
+      'List your team members (id, name, email) — use this to pick who to assign a task to, or who to remove.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
   {
@@ -88,24 +91,63 @@ const MANAGER_TOOLS = [
       required: ['title', 'assignedToId'],
     },
   },
+  {
+    name: 'onboard_employees',
+    description:
+      'Register one or more new employees under you. Each gets a temporary password to share with them. Confirm the list (names/emails/numbers) with the user before calling this.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        employees: {
+          type: 'array',
+          description: 'The employees to onboard.',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              email: { type: 'string' },
+              phone: { type: 'string', description: 'WhatsApp number' },
+              designation: { type: 'string', description: 'Job title, e.g. Developer, Intern' },
+            },
+            required: ['name', 'email', 'phone'],
+          },
+        },
+      },
+      required: ['employees'],
+    },
+  },
+  {
+    name: 'remove_employee',
+    description:
+      'Fire/remove an employee from your team. This reassigns their tasks to you and deletes their account. This is destructive — always confirm with the user before calling this.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        employeeId: { type: 'string', description: 'Employee id from list_employees' },
+      },
+      required: ['employeeId'],
+    },
+  },
 ];
 
 const toolsForUser = (user: AgentUser) =>
-  user.role === 'MANAGER' ? [...COMMON_TOOLS, ...MANAGER_TOOLS] : COMMON_TOOLS;
+  user.role === 'ADMIN' ? [...COMMON_TOOLS, ...MANAGER_TOOLS] : COMMON_TOOLS;
 
 const buildSystemPrompt = (user: AgentUser): string => {
   const scope =
-    user.role === 'MANAGER'
-      ? 'You can see and manage the tasks this manager created, list employees, and create/assign new tasks to employees.'
+    user.role === 'ADMIN'
+      ? 'You can manage the tasks this manager created, list their team, onboard new employees, remove (fire) employees, and create/assign tasks to their team members.'
       : 'You can see and update the tasks assigned to this employee.';
   return [
     `You are the TaskPulse assistant, chatting with ${user.name} (role: ${user.role}) over WhatsApp.`,
-    'You help them manage their tasks in the TaskPulse app.',
+    'You help them manage their tasks and team in the TaskPulse app.',
     scope,
-    'Always use the tools to read or change real data — never invent tasks, ids, statuses, or due dates.',
-    'When the user refers to a task by name or description, first look it up (get_my_tasks) to get its exact numeric id, then use that id. Do not guess ids.',
-    'Before any action that changes data (updating a status, adding a comment, creating a task), confirm with the user first by restating the concrete change (the task title and what will happen). Resolve the task id before asking, so that once they agree (e.g. "yes") you can call the write tool immediately without asking again.',
-    "Only act within this user's scope. If they ask about tasks that aren't theirs, tell them you can't access those.",
+    'Always use the tools to read or change real data — never invent tasks, employees, ids, statuses, or due dates.',
+    'When the user refers to a task or employee by name, first look it up (get_my_tasks or list_employees) to get its exact id, then use that id. Do not guess ids.',
+    'Before any action that changes data (updating a status, adding a comment, creating a task, onboarding employees, or removing an employee), confirm with the user first by restating the concrete change. Resolve any needed id before asking, so that once they agree (e.g. "yes") you can call the tool immediately without asking again.',
+    'Removing/firing an employee is destructive (it deletes their account and reassigns their tasks to you) — always confirm clearly before doing it.',
+    'When you onboard employees, report back the temporary password generated for each one so the manager can share it.',
+    "Only act within this user's scope. If they ask about tasks or employees that aren't theirs, tell them you can't access those.",
     'Keep replies short, friendly and WhatsApp-appropriate: plain text, short sentences, simple dashes for lists — no markdown tables or headings. Use the person\'s name occasionally.',
     'If a message is not about tasks, reply briefly and offer to help with their tasks.',
   ].join(' ');
@@ -195,20 +237,30 @@ const runTool = async (name: string, input: any, user: AgentUser): Promise<strin
       }
 
       case 'list_employees': {
-        if (user.role !== 'MANAGER') return 'Only managers can list employees.';
+        if (user.role !== 'ADMIN') return 'Only admins can list employees.';
+        // Scoped to this admin's own team (their onboarded members).
         const employees = await prisma.user.findMany({
-          where: { role: 'EMPLOYEE' },
-          select: { id: true, name: true, email: true },
+          where: { managerId: user.id },
+          select: { id: true, name: true, email: true, designation: true },
         });
+        if (!employees.length) {
+          return 'You have no team members yet. Onboard your team via the TaskPulse app (Onboard Team) first.';
+        }
         return JSON.stringify(employees);
       }
 
       case 'create_task': {
-        if (user.role !== 'MANAGER') return 'Only managers can create tasks.';
+        if (user.role !== 'ADMIN') return 'Only admins can create tasks.';
         const title = String(input?.title ?? '').trim();
         const assignedToId = String(input?.assignedToId ?? '').trim();
         if (!title) return 'Task title is required.';
         if (!assignedToId) return 'assignedToId is required — use list_employees to find it.';
+        // Enforce tenancy: managers can only assign to their own employees.
+        const employee = await prisma.user.findFirst({
+          where: { id: assignedToId, managerId: user.id },
+          select: { id: true },
+        });
+        if (!employee) return 'That employee is not on your team, so you cannot assign tasks to them.';
         let dueDate: Date | undefined;
         if (input?.dueDate) {
           const parsed = new Date(String(input.dueDate));
@@ -222,6 +274,50 @@ const runTool = async (name: string, input: any, user: AgentUser): Promise<strin
           dueDate,
         });
         return `Task created (id ${task.id}): "${title}".`;
+      }
+
+      case 'onboard_employees': {
+        if (user.role !== 'ADMIN') return 'Only admins can onboard employees.';
+        const employees = Array.isArray(input?.employees) ? input.employees : [];
+        if (!employees.length) {
+          return 'Provide at least one employee with a name, email and WhatsApp number.';
+        }
+        const rows = employees.map((e: any) => ({
+          name: e?.name ? String(e.name) : undefined,
+          email: e?.email ? String(e.email) : undefined,
+          phone: e?.phone ? String(e.phone) : undefined,
+          designation: e?.designation ? String(e.designation) : undefined,
+        }));
+        const result = await onboardEmployees(user.id, rows);
+        const parts: string[] = [`Summary: ${JSON.stringify(result.summary)}`];
+        if (result.created.length) {
+          parts.push(
+            'Onboarded (share these temporary passwords):\n' +
+              result.created
+                .map((c) => `- ${c.name} (${c.email}, ${c.phone}) — password: ${c.tempPassword}`)
+                .join('\n')
+          );
+        }
+        if (result.skipped.length) {
+          parts.push(
+            'Skipped:\n' +
+              result.skipped.map((s) => `- ${s.email ?? 'row ' + s.row}: ${s.reason}`).join('\n')
+          );
+        }
+        if (result.errors.length) {
+          parts.push(
+            'Errors:\n' + result.errors.map((er) => `- row ${er.row}: ${er.reason}`).join('\n')
+          );
+        }
+        return parts.join('\n\n');
+      }
+
+      case 'remove_employee': {
+        if (user.role !== 'ADMIN') return 'Only admins can remove employees.';
+        const employeeId = String(input?.employeeId ?? '').trim();
+        if (!employeeId) return 'employeeId is required — use list_employees to find it.';
+        const removed = await deleteEmployee(user.id, employeeId);
+        return `Removed ${removed.name} (${removed.email}) from your team. Their tasks were reassigned to you.`;
       }
 
       default:
@@ -252,6 +348,9 @@ export const runAgent = async (
     { role: 'user', content: userText },
   ];
 
+  let inputTokens = 0;
+  let outputTokens = 0;
+
   try {
     for (let turn = 0; turn < MAX_TOOL_TURNS; turn++) {
       const response = await anthropic.messages.create({
@@ -261,6 +360,13 @@ export const runAgent = async (
         tools: tools as any,
         messages,
       } as any);
+
+      const usage = (response as any).usage ?? {};
+      inputTokens +=
+        (usage.input_tokens ?? 0) +
+        (usage.cache_read_input_tokens ?? 0) +
+        (usage.cache_creation_input_tokens ?? 0);
+      outputTokens += usage.output_tokens ?? 0;
 
       if (response.stop_reason === 'tool_use') {
         messages.push({ role: 'assistant', content: response.content });
@@ -287,6 +393,8 @@ export const runAgent = async (
   } catch (error) {
     console.error('Agent error:', error);
     return 'Sorry, I hit a problem handling that. Please try again in a moment.';
+  } finally {
+    void recordAiUsage(user.organizationId, inputTokens, outputTokens);
   }
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */

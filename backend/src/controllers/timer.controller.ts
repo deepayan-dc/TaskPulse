@@ -1,7 +1,8 @@
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { parseTaskId } from '../utils/validators';
 import { AppError } from '../utils/app-error';
+import { assertTaskAccess } from '../services/task.service';
 import { BasicAuthRequest } from '../middleware/basic-auth.middleware';
 
 export const startTimerController = async (req: BasicAuthRequest, res: Response, next: NextFunction) => {
@@ -13,10 +14,8 @@ export const startTimerController = async (req: BasicAuthRequest, res: Response,
       throw new AppError('Unauthorized', 401);
     }
 
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task) {
-      throw new AppError('Task not found', 404);
-    }
+    // Scope: only the task's creator or assignee may time it.
+    await assertTaskAccess(taskId, userId);
 
     // Check if there is already an active timer
     const activeLog = await prisma.timeLog.findFirst({
@@ -56,10 +55,8 @@ export const stopTimerController = async (req: BasicAuthRequest, res: Response, 
       throw new AppError('Unauthorized', 401);
     }
 
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task) {
-      throw new AppError('Task not found', 404);
-    }
+    // Scope: only the task's creator or assignee may time it.
+    await assertTaskAccess(taskId, userId);
 
     // Find the active timer
     const activeLog = await prisma.timeLog.findFirst({

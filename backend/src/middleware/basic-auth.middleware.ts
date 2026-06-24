@@ -8,6 +8,7 @@ export interface BasicAuthRequest extends Request {
     name: string;
     email: string;
     role: string;
+    organizationId?: string | null;
   };
 }
 
@@ -42,6 +43,7 @@ export const basicAuth = async (req: BasicAuthRequest, res: Response, next: Next
       name: user.name,
       email: user.email,
       role: user.role,
+      organizationId: user.organizationId,
     };
 
     return next();

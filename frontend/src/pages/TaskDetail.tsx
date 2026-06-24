@@ -86,7 +86,7 @@ const TaskDetail = () => {
       setComments(prev => [...prev, newComment]);
       setCommentText('');
       
-      const targetId = user.role === 'MANAGER' ? task.assignee.id : task.createdBy.id;
+      const targetId = user.role === 'ADMIN' ? task.assignee.id : task.createdBy.id;
       addNotification(targetId, `New comment from ${user.name}: ${task.title}`, task.id);
     } catch (err) {
       console.error(err);
@@ -118,7 +118,7 @@ const TaskDetail = () => {
           
           <div className="flex flex-wrap gap-3">
             {/* EMPLOYEE CONTROLS */}
-            {user?.role === 'EMPLOYEE' && task.status === 'Pending' && (
+            {user?.role === 'MEMBER' && task.status === 'Pending' && (
               <button 
                 onClick={async () => {
                   await handleStatusChange('In Progress');
@@ -131,7 +131,7 @@ const TaskDetail = () => {
               </button>
             )}
 
-            {user?.role === 'EMPLOYEE' && task.status === 'In Progress' && (
+            {user?.role === 'MEMBER' && task.status === 'In Progress' && (
               <>
                 {task.timerData.isRunning ? (
                   <button 
@@ -168,7 +168,7 @@ const TaskDetail = () => {
               </>
             )}
 
-            {user?.role === 'EMPLOYEE' && task.status === 'Returned' && (
+            {user?.role === 'MEMBER' && task.status === 'Returned' && (
               <button 
                 onClick={async () => {
                   await handleStatusChange('In Progress');
@@ -182,7 +182,7 @@ const TaskDetail = () => {
             )}
 
             {/* MANAGER CONTROLS */}
-            {user?.role === 'MANAGER' && task.status === 'Completed' && (
+            {user?.role === 'ADMIN' && task.status === 'Completed' && (
               <>
                 <button onClick={() => setIsReturnModalOpen(true)} className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-6 rounded-xl transition-all shadow-lg text-sm">Return</button>
                 <button onClick={() => handleStatusChange('Approved')} className="bg-purple-500 hover:bg-purple-600 text-white font-medium py-2 px-6 rounded-xl transition-all shadow-lg text-sm">Approve</button>

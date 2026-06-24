@@ -4,6 +4,9 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import TaskList from '../pages/TaskList';
 import TaskDetail from '../pages/TaskDetail';
+import OnboardTeam from '../pages/OnboardTeam';
+import Billing from '../pages/Billing';
+import Settings from '../pages/Settings';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 export const router = createBrowserRouter([
@@ -34,6 +37,18 @@ export const router = createBrowserRouter([
       {
         path: '/tasks/:id',
         element: <TaskDetail />,
+      },
+      {
+        path: '/onboard-team',
+        element: <OnboardTeam />,
+      },
+      {
+        path: '/billing',
+        element: <Billing />,
+      },
+      {
+        path: '/settings',
+        element: <Settings />,
       },
     ],
   },

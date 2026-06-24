@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { config } from '../config';
+import { recordWhatsAppUsage } from './usage.service';
 
 // Template (HSM) messages use the dedicated /template/msg endpoint; free-form
 // session replies use /msg. The session endpoint only works within WhatsApp's
@@ -54,7 +55,8 @@ const gupshupConfigured = (): boolean => {
 export const sendWhatsAppTemplate = async (
   to: string,
   templateId: string,
-  params: string[]
+  params: string[],
+  organizationId?: string | null
 ): Promise<boolean> => {
   if (!gupshupConfigured()) return false;
 
@@ -86,6 +88,7 @@ export const sendWhatsAppTemplate = async (
 
     console.log(`Gupshup template accepted for ${to}: ${responseText}`);
     await saveDeliveryLog(to, template, 'sent');
+    await recordWhatsAppUsage(organizationId);
     return true;
   } catch (error) {
     console.error('Failed to send WhatsApp template via Gupshup:', error);
@@ -103,7 +106,11 @@ export const sendWhatsAppTemplate = async (
  * 24h window after the recipient last messaged the business number — which is
  * always true when replying to an inbound message.
  */
-export const sendWhatsAppText = async (to: string, text: string): Promise<boolean> => {
+export const sendWhatsAppText = async (
+  to: string,
+  text: string,
+  organizationId?: string | null
+): Promise<boolean> => {
   if (!gupshupConfigured()) return false;
 
   const message = JSON.stringify({ type: 'text', text });
@@ -134,6 +141,7 @@ export const sendWhatsAppText = async (to: string, text: string): Promise<boolea
     }
 
     await saveDeliveryLog(to, text, 'sent');
+    await recordWhatsAppUsage(organizationId);
     return true;
   } catch (error) {
     console.error('Failed to send WhatsApp text via Gupshup:', error);
@@ -191,7 +199,75 @@ export const sendTaskPulseNotification = async (opts: {
   recipientPhone: string;
   fallbackName?: string;
   taskId?: number;
+  organizationId?: string | null;
 }): Promise<boolean> => {
   const params = await buildTemplateParams(opts);
-  return sendWhatsAppTemplate(opts.recipientPhone, config.gupshupTemplateId, params);
+  return sendWhatsAppTemplate(
+    opts.recipientPhone,
+    config.gupshupTemplateId,
+    params,
+    opts.organizationId
+  );
+};
+
+/**
+ * Welcome a newly onboarded employee on WhatsApp with their login credentials.
+ * Uses a dedicated approved template if GUPSHUP_ONBOARDING_TEMPLATE_ID is set
+ * (deliverable to new/cold numbers); otherwise falls back to a free-form session
+ * text (only delivered within the recipient's 24h session window).
+ */
+export const sendOnboardingWelcome = async (opts: {
+  phone: string;
+  name: string;
+  orgName: string;
+  managerName: string;
+  email: string;
+  password: string;
+  organizationId?: string | null;
+}): Promise<boolean> => {
+  if (config.gupshupOnboardingTemplateId) {
+    // Param order must match your approved onboarding template's placeholders.
+    return sendWhatsAppTemplate(
+      opts.phone,
+      config.gupshupOnboardingTemplateId,
+      [opts.name, opts.orgName, opts.managerName, opts.email, opts.password],
+      opts.organizationId
+    );
+  }
+
+  const text =
+    `Congratulations ${opts.name}! 🎉 You have been onboarded to ${opts.orgName} ` +
+    `by ${opts.managerName}.\n\n` +
+    `Your TaskPulse login credentials:\n` +
+    `Email: ${opts.email}\n` +
+    `Password: ${opts.password}\n\n` +
+    `You'll be asked to set a new password on first login.`;
+  return sendWhatsAppText(opts.phone, text, opts.organizationId);
+};
+
+/**
+ * Notify an employee on WhatsApp that they have been removed from their org.
+ * Uses a dedicated approved template if GUPSHUP_REMOVAL_TEMPLATE_ID is set,
+ * otherwise a free-form session text (subject to the 24h session window).
+ */
+export const sendRemovalNotice = async (opts: {
+  phone: string;
+  name: string;
+  orgName: string;
+  organizationId?: string | null;
+}): Promise<boolean> => {
+  if (config.gupshupRemovalTemplateId) {
+    // Param order must match your approved removal template's placeholders.
+    return sendWhatsAppTemplate(
+      opts.phone,
+      config.gupshupRemovalTemplateId,
+      [opts.name, opts.orgName],
+      opts.organizationId
+    );
+  }
+
+  const text =
+    `Hi ${opts.name}, you have been removed from ${opts.orgName}. ` +
+    `Your services are no longer needed. Thank you.`;
+  return sendWhatsAppText(opts.phone, text, opts.organizationId);
 };
