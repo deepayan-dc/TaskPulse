@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../utils/app-error';
 import { normalizePhone } from '../utils/validators';
-import { sendOnboardingWelcome, sendRemovalNotice } from './whatsapp.service';
+import { sendOnboardingWelcome, sendRemovalNotice, sendWhatsAppText } from './whatsapp.service';
 
 export type OnboardRow = { name?: string; email?: string; phone?: string; designation?: string };
 
@@ -361,9 +361,24 @@ export const setMemberRole = async (
     throw new AppError('You can only change roles for your own team members', 403);
   }
 
-  return prisma.user.update({
+  const wasMember = target.role !== 'ADMIN';
+
+  const updated = await prisma.user.update({
     where: { id: targetId },
     data: { role },
     select: { id: true, name: true, email: true, role: true, designation: true },
   });
+
+  // Promotion (MEMBER -> ADMIN): notify the promoted member on WhatsApp.
+  // Fire-and-forget — a delivery failure must not fail the role change. Free-form
+  // text is only delivered within the member's 24h WhatsApp session window.
+  if (role === 'ADMIN' && wasMember && target.phone) {
+    void sendWhatsAppText(
+      target.phone,
+      `Congratulations ${target.name}! 🎉 You have been promoted to admin by ${manager.name}.`,
+      target.organizationId
+    ).catch((err) => console.error(`Failed to send promotion notice to ${target.phone}:`, err));
+  }
+
+  return updated;
 };

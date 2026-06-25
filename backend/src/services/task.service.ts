@@ -1,6 +1,11 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../utils/app-error';
-import { sendTaskPulseNotification } from './whatsapp.service';
+import { config } from '../config';
+import {
+  sendTaskPulseNotification,
+  sendWhatsAppText,
+  sendTaskUpdateNotification,
+} from './whatsapp.service';
 
 // A user may only see/act on tasks they created (manager) or are assigned (employee).
 export const taskScopeWhere = (userId: string) => ({
@@ -91,6 +96,58 @@ export const createTask = async (input: {
   return task;
 };
 
+/**
+ * Notify the task's assignee that an existing task was changed via the WhatsApp
+ * agent — both a WhatsApp template and an in-app TaskPulse notification.
+ *
+ * `changeType` fills {{2}} ("status" or "comment"); `detail` fills {{4}} — the
+ * comment text for a comment, or the new status for a status change.
+ * Skips the person who made the change (no point notifying yourself). Never throws.
+ */
+export const notifyAssigneeOfTaskUpdate = async (opts: {
+  taskId: number;
+  changeType: string;
+  detail: string;
+  actingUserId: string;
+}): Promise<void> => {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: opts.taskId },
+      include: {
+        assignedTo: { select: { id: true, name: true, phone: true, organizationId: true } },
+      },
+    });
+    const assignee = task?.assignedTo;
+    if (!task || !assignee) return;
+    if (assignee.id === opts.actingUserId) return; // don't notify the actor about their own change
+
+    // In-app TaskPulse notification.
+    await prisma.notification.create({
+      data: {
+        taskId: task.id,
+        userId: assignee.id,
+        message: `Task "${task.title}" ${opts.changeType} updated: ${opts.detail}`,
+      },
+    });
+
+    // WhatsApp template to the assignee.
+    if (assignee.phone) {
+      await sendTaskUpdateNotification({
+        recipientPhone: assignee.phone,
+        assigneeName: assignee.name,
+        changeType: opts.changeType,
+        taskName: task.title,
+        detail: opts.detail,
+        organizationId: assignee.organizationId,
+      });
+    } else {
+      console.warn(`No phone for assignee ${assignee.id}; WhatsApp task-update alert skipped.`);
+    }
+  } catch (error) {
+    console.error(`Failed to notify assignee of task ${opts.taskId} update:`, error);
+  }
+};
+
 export const updateTaskStatus = async (taskId: number, status: string) => {
   const existingTask = await prisma.task.findUnique({
     where: { id: taskId },
@@ -98,6 +155,7 @@ export const updateTaskStatus = async (taskId: number, status: string) => {
       createdBy: {
         select: {
           id: true,
+          name: true,
           phone: true,
           organizationId: true,
         },
@@ -128,11 +186,17 @@ export const updateTaskStatus = async (taskId: number, status: string) => {
 
   if (status === 'Completed' || status === 'DONE') {
     if (existingTask.createdBy.phone) {
-      await sendTaskPulseNotification({
-        recipientPhone: existingTask.createdBy.phone,
-        taskId: existingTask.id,
-        organizationId: existingTask.createdBy.organizationId,
-      });
+      // Free-form text (not the "Task assigned" template) — only delivered if the
+      // manager has an open 24h WhatsApp session with the business number.
+      const text =
+        `Hi ${existingTask.createdBy.name}, task #${existingTask.id} ` +
+        `"${existingTask.title}" has been marked ${status}.\n` +
+        `${config.frontendUrl}/tasks/${existingTask.id}`;
+      await sendWhatsAppText(
+        existingTask.createdBy.phone,
+        text,
+        existingTask.createdBy.organizationId
+      );
     } else {
       console.warn(
         `Skipping WhatsApp completion alert. No phone number for manager ${existingTask.createdBy.id}.`

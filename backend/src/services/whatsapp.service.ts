@@ -155,57 +155,72 @@ export const sendWhatsAppText = async (
 };
 
 /**
- * Build the 5 parameters for the TaskPulse notification template:
- *   {{1}} recipient's name (looked up from their phone number)
- *   {{2}} "TaskPulse"
- *   {{3}} a random integer
- *   {{4}} a date
- *   {{5}} a deep-link to a task in the TaskPulse app
+ * Build the 4 parameters for the "Task assigned" template:
+ *   {{1}} assignee's name (looked up from their phone, else fallback)
+ *   {{2}} the task's numeric id
+ *   {{3}} the task's due date (YYYY-MM-DD, or "Not set")
+ *   {{4}} a deep-link to the task in the TaskPulse app
  */
-const buildTemplateParams = async (opts: {
+const buildTaskAssignedParams = async (opts: {
   recipientPhone: string;
   fallbackName?: string;
-  taskId?: number;
+  taskId: number;
 }): Promise<string[]> => {
   // {{1}} — trace the recipient's phone number back to their name.
   const user = await prisma.user.findFirst({ where: { phone: opts.recipientPhone } });
   const name = user?.name || opts.fallbackName || 'there';
 
-  // {{5}} — link to a task. Use the given task, else the recipient's latest task,
-  // else the latest task overall; fall back to the task list if none exist.
-  let taskId = opts.taskId;
-  if (taskId === undefined) {
-    const latestTask = await prisma.task.findFirst({
-      where: user ? { assignedToId: user.id } : undefined,
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
-    taskId = latestTask?.id;
-  }
-  const taskLink =
-    taskId !== undefined ? `${config.frontendUrl}/tasks/${taskId}` : `${config.frontendUrl}/tasks`;
+  // {{3}} — the task's due date, read straight from the DB.
+  const task = await prisma.task.findUnique({
+    where: { id: opts.taskId },
+    select: { dueDate: true },
+  });
+  const dueDate = task?.dueDate ? task.dueDate.toISOString().split('T')[0] : 'Not set';
 
-  const randomInt = Math.floor(Math.random() * 100000).toString();
-  const date = new Date().toISOString().split('T')[0];
+  // {{4}} — deep-link to the task. FRONTEND_URL must be publicly reachable for
+  // the link to open on the assignee's phone.
+  const taskLink = `${config.frontendUrl}/tasks/${opts.taskId}`;
 
-  return [name, 'TaskPulse', randomInt, date, taskLink];
+  return [name, String(opts.taskId), dueDate, taskLink];
 };
 
 /**
- * Send the standard TaskPulse notification template to a recipient, filling the
- * 5 params from the recipient/task context.
+ * Notify an assignee on WhatsApp that a task has been assigned to them, using the
+ * approved "Task assigned" template (GUPSHUP_TEMPLATE_ID).
  */
 export const sendTaskPulseNotification = async (opts: {
   recipientPhone: string;
   fallbackName?: string;
-  taskId?: number;
+  taskId: number;
   organizationId?: string | null;
 }): Promise<boolean> => {
-  const params = await buildTemplateParams(opts);
+  const params = await buildTaskAssignedParams(opts);
   return sendWhatsAppTemplate(
     opts.recipientPhone,
     config.gupshupTemplateId,
     params,
+    opts.organizationId
+  );
+};
+
+/**
+ * Notify an assignee on WhatsApp that an existing task was changed, using the
+ * "Update for task" template (GUPSHUP_TASK_UPDATE_TEMPLATE_ID). Params:
+ *   {{1}} assignee name, {{2}} change type ("status"/"comment"),
+ *   {{3}} task name, {{4}} the comment text (for comments) or new status.
+ */
+export const sendTaskUpdateNotification = async (opts: {
+  recipientPhone: string;
+  assigneeName: string;
+  changeType: string;
+  taskName: string;
+  detail: string;
+  organizationId?: string | null;
+}): Promise<boolean> => {
+  return sendWhatsAppTemplate(
+    opts.recipientPhone,
+    config.gupshupTaskUpdateTemplateId,
+    [opts.assigneeName, opts.changeType, opts.taskName, opts.detail],
     opts.organizationId
   );
 };

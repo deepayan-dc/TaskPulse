@@ -10,6 +10,11 @@ export const config = {
   gupshupSourceNumber: process.env.GUPSHUP_SOURCE_NUMBER,
   gupshupSrcName: process.env.GUPSHUP_SRC_NAME || 'TaskPulseNotif',
   gupshupTemplateId: process.env.GUPSHUP_TEMPLATE_ID || '3a09588b-f293-4134-9b72-b0f0519000a6',
+  // "Update for task" template, sent to the assignee when an existing task is
+  // changed (status update / comment) via the WhatsApp agent.
+  // Params: {{1}} assignee name, {{2}} change type, {{3}} task id, {{4}} status.
+  gupshupTaskUpdateTemplateId:
+    process.env.GUPSHUP_TASK_UPDATE_TEMPLATE_ID || 'a1c29eeb-fd2e-4ad9-81a5-93bc47bb4992',
   // Optional approved template for the onboarding welcome message. If set, the
   // welcome is sent as a template (deliverable to cold/new numbers); otherwise a
   // free-form session text is used (only delivered within the 24h session window).

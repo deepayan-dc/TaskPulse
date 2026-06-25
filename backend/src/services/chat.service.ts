@@ -1,7 +1,7 @@
 import { anthropic } from '../lib/anthropic';
 import { prisma } from '../lib/prisma';
 import { normalizePhone } from '../utils/validators';
-import { sendTaskPulseNotification, sendWhatsAppText } from './whatsapp.service';
+import { sendWhatsAppText } from './whatsapp.service';
 import { runAgent, ChatTurn } from './agent.service';
 import { recordAiUsage } from './usage.service';
 
@@ -132,14 +132,16 @@ const handleInboundMessage = async (msg: InboundTextMessage): Promise<void> => {
     return;
   }
 
-  // Greeting → branded welcome template (replied to the sender).
+  // Greeting → friendly free-form welcome (the sender is in-session, having just
+  // messaged us, so a session text is delivered reliably).
   if (await isGreeting(msg.text, user.organizationId)) {
-    console.log(`Greeting from ${user.name} (${from}); sending welcome template.`);
-    await sendTaskPulseNotification({
-      recipientPhone: from,
-      fallbackName: user.name,
-      organizationId: user.organizationId,
-    });
+    console.log(`Greeting from ${user.name} (${from}); sending welcome text.`);
+    await sendWhatsAppText(
+      from,
+      `Hi ${user.name}! 👋 I'm the TaskPulse assistant. I can help you check and manage your tasks. ` +
+        `Try "show my tasks" to get started.`,
+      user.organizationId
+    );
     return;
   }
 

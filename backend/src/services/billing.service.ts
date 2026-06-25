@@ -44,10 +44,13 @@ export const applyTopup = async (
   return { balancePaise: wallet.balancePaise, invoice, alreadyProcessed: false };
 };
 
-/** Extract the organization id from an order receipt (`wallet_<orgId>_<ts>`). */
+/** Extract the organization id (a UUID) from an order receipt, regardless of the
+ *  surrounding prefix/suffix (e.g. `tp_<orgId>` or legacy `wallet_<orgId>_<ts>`). */
 export const orgIdFromReceipt = (receipt: string): string | null => {
-  const parts = (receipt || '').split('_');
-  return parts[0] === 'wallet' && parts[1] ? parts[1] : null;
+  const match = (receipt || '').match(
+    /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i
+  );
+  return match ? match[0] : null;
 };
 
 /**

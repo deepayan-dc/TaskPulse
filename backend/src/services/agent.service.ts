@@ -1,6 +1,6 @@
 import { anthropic } from '../lib/anthropic';
 import { prisma } from '../lib/prisma';
-import { createTask, updateTaskStatus } from './task.service';
+import { createTask, updateTaskStatus, notifyAssigneeOfTaskUpdate } from './task.service';
 import { onboardEmployees, deleteEmployee } from './onboarding.service';
 import { recordAiUsage } from './usage.service';
 import { parseTaskStatus } from '../utils/validators';
@@ -222,6 +222,12 @@ const runTool = async (name: string, input: any, user: AgentUser): Promise<strin
         const t = await prisma.task.findFirst({ where: { id, ...taskScope(user) }, select: { id: true } });
         if (!t) return 'Task not found, or you do not have access to it.';
         await updateTaskStatus(id, status);
+        await notifyAssigneeOfTaskUpdate({
+          taskId: id,
+          changeType: 'status',
+          detail: status,
+          actingUserId: user.id,
+        });
         return `Task ${id} status updated to "${status}".`;
       }
 
@@ -233,6 +239,12 @@ const runTool = async (name: string, input: any, user: AgentUser): Promise<strin
         const t = await prisma.task.findFirst({ where: { id, ...taskScope(user) }, select: { id: true } });
         if (!t) return 'Task not found, or you do not have access to it.';
         await prisma.comment.create({ data: { content: text, taskId: id, userId: user.id } });
+        await notifyAssigneeOfTaskUpdate({
+          taskId: id,
+          changeType: 'comment',
+          detail: text,
+          actingUserId: user.id,
+        });
         return `Comment added to task ${id}.`;
       }
 

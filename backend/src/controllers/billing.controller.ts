@@ -81,7 +81,9 @@ export const createTopupOrderController = async (
     if (!Number.isFinite(amountPaise) || amountPaise < 100) {
       return res.status(400).json({ message: 'Minimum top-up is ₹1 (amountPaise >= 100)' });
     }
-    const order = await createRazorpayOrder(amountPaise, `wallet_${organizationId}_${Date.now()}`);
+    // Razorpay caps receipt at 40 chars; "tp_" + a 36-char UUID = 39. The org id
+    // is recovered from the receipt by the webhook (orgIdFromReceipt).
+    const order = await createRazorpayOrder(amountPaise, `tp_${organizationId}`);
     res.status(200).json({
       data: { orderId: order.id, amount: order.amount, currency: order.currency, keyId: razorpayKeyId() },
     });
